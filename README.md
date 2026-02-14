@@ -1,0 +1,98 @@
+# Better KOReader Miniapp
+
+A web companion app for KOReader that lets you browse your e-books, highlights, and create custom quotes with beautiful typography.
+
+## Features
+
+- 📚 **Book Library** - View all your KOReader books with highlight counts
+- ✨ **Highlights Management** - Browse, search, and manage your reading highlights
+- 🖋️ **Custom Quotes** - Create beautiful custom quotes with customizable fonts
+- 🔤 **Font Picker** - Extensive font selection with variants and subsets
+- 🌐 **RTL Support** - Full right-to-left language support
+- 📱 **Responsive Design** - Works on desktop and mobile devices
+
+## Tech Stack
+
+- **Framework**: Sveltekit
+- **Backend**: Appwrite (authentication & database)
+- **UI Components**: shadcn-svelte
+- **Font Selection**: Google Fonts API integration
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Bun (recommended) or npm/pnpm
+
+### Installation
+
+```sh
+# Install dependencies
+bun install
+# or
+npm install
+```
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+```sh
+cp .env.example .env
+```
+
+Required variables:
+
+- `PUBLIC_APPWRITE_ENDPOINT` - Appwrite API endpoint
+- `PUBLIC_APPWRITE_PROJECT` - Appwrite project ID
+- `APPWRITE_API_KEY` - Appwrite API key (server-side)
+- `TMabot_API_TOKEN` - Telegram bot token (optional)
+
+### Development
+
+```sh
+# Start development server
+bun run dev
+
+# Open in browser
+bun run dev -- --open
+```
+
+### Building
+
+```sh
+# Create production build
+bun run build
+
+# Preview production build
+bun run preview
+```
+
+## Project Structure
+
+```
+src/
+├── lib/
+│   ├── components/       # Svelte components
+│   │   ├── ui/          # shadcn-svelte UI components
+│   │   ├── book-card.svelte
+│   │   ├── font-selector.svelte
+│   │   ├── highlight-card.svelte
+│   │   └── ...
+│   ├── functions/       # Business logic
+│   ├── state/          # Svelte 5 state management
+│   ├── utils/          # Utility functions
+│   ├── types.ts        # TypeScript types
+│   └── assets/         # Static assets (font-picker)
+├── routes/
+│   ├── +page.svelte    # Home page (library)
+│   ├── book/[id]/      # Book details
+│   ├── book/[id]/highlight/[hid]/  # Highlight details
+│   └── api/            # API routes
+└── app.html            # HTML template
+```
+
+## License
+
+MIT

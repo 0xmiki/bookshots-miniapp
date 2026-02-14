@@ -1,0 +1,66 @@
+<script lang="ts">
+	import type { Highlight } from '$lib/types';
+	import { app_state, THEME_PRESETS, type ThemePreset } from '$lib/state/state.svelte';
+	import Button from './ui/button/button.svelte';
+	import { Image } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { getTextDirection } from '$lib/utils/rtl';
+
+	let { highlight }: { highlight: Highlight } = $props();
+
+	// Calculate optimal font size based on text length (simplified for DOM)
+	function calculateFontSize(text: string): number {
+		const length = text.length;
+		if (length <= 50) return 32;
+		if (length <= 100) return 28;
+		if (length <= 200) return 24;
+		if (length <= 400) return 20;
+		return 18;
+	}
+
+	// Calculate optimal card width based on text length
+	function calculateCardWidth(text: string): string {
+		const length = text.length;
+		if (length <= 100) return 'min(400px, 90vw)';
+		if (length <= 300) return 'min(500px, 90vw)';
+		if (length <= 600) return 'min(600px, 90vw)';
+		return 'min(700px, 90vw)';
+	}
+
+	// Safe theme lookup with fallback to charcoal
+	function getTheme(): ThemePreset {
+		const themeId = app_state.highlight_theme || 'charcoal';
+		return THEME_PRESETS.find((t) => t.id === themeId) || THEME_PRESETS[9];
+	}
+
+	let fontSize = $derived(calculateFontSize(highlight.text || ''));
+	let cardWidth = $derived(calculateCardWidth(highlight.text || ''));
+	let theme = $derived(getTheme());
+	let textDirection = $derived(getTextDirection(highlight.text || ''));
+
+	// Get CSS gradient or solid color for theme
+	function getThemeBackground(theme: ThemePreset): string {
+		if (theme.type === 'solid') {
+			return theme.colors[0];
+		}
+		return `linear-gradient(135deg, ${theme.colors.join(', ')})`;
+	}
+
+	// Get font family
+	function getFontFamily(): string {
+		return app_state.main_font ? app_state.main_font.family : 'serif';
+	}
+</script>
+
+<div class="flex w-full justify-center">
+	<div
+		class="overflow-hidden rounded-xl shadow-lg transition-all duration-300"
+		style="width: {cardWidth}; background: {getThemeBackground(
+			theme
+		)}; color: {theme.textColor}; font-family: 'serif'; font-size: {fontSize}px; line-height: 1.4; direction: {textDirection};"
+	>
+		<div class="px-4 py-3">
+			<p class="leading-relaxed break-words whitespace-pre-wrap">{highlight.text || ''}</p>
+		</div>
+	</div>
+</div>
