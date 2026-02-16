@@ -54,10 +54,14 @@
 
 <div class="flex w-full justify-center">
 	<div
-		class="overflow-hidden rounded-xl shadow-lg transition-all duration-300"
+		class="cursor-pointer overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl"
 		style="width: {cardWidth}; background: {getThemeBackground(
 			theme
 		)}; color: {theme.textColor}; font-family: 'serif'; font-size: {fontSize}px; line-height: 1.4; direction: {textDirection};"
+		onclick={() => {
+			const bookKey = `${highlight.author}::${highlight.title}`;
+			goto(`/book/${bookKey}/highlight/${highlight.$id}`);
+		}}
 	>
 		<div class="px-4 py-3">
 			<p class="leading-relaxed break-words whitespace-pre-wrap">{highlight.text || ''}</p>

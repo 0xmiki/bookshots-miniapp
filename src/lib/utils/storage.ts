@@ -37,7 +37,7 @@ export interface HighlightsSession {
 const DEFAULT_BOOK_SETTINGS: BookSettings = {
 	carouselIndex: 0,
 	sortBy: 'page-asc',
-	viewMode: 'carousel',
+	viewMode: 'vertical',
 	theme: 'charcoal'
 };
 

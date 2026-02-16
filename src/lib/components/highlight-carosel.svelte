@@ -139,20 +139,6 @@
 					}}
 				>
 					<HighlightCard {highlight} />
-
-					<div class=" flex items-center justify-between px-2 py-1">
-						<p class="text-xs text-muted-foreground">{i + 1} of {highlights.length}</p>
-						<Button
-							variant="outline"
-							class=" mt-1 rounded-full"
-							size="icon"
-							onclick={() =>
-								goto(`/book/${highlight.author}::${highlight.title}/highlight/${highlight.$id}`)}
-						>
-							<SquarePen />
-						</Button>
-						<p class="text-xs text-muted-foreground">Page {highlight.pageno}</p>
-					</div>
 				</div>
 			{/each}
 		</div>

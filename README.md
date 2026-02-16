@@ -1,15 +1,13 @@
-# Better KOReader Miniapp
+# Bookshots Miniapp
 
-A web companion app for KOReader that lets you browse your e-books, highlights, and create custom quotes with beautiful typography.
+A telegram miniapp that lets you browse your e-books, highlights, and create custom quotes with beautiful typography.
 
 ## Features
 
-- 📚 **Book Library** - View all your KOReader books with highlight counts
 - ✨ **Highlights Management** - Browse, search, and manage your reading highlights
 - 🖋️ **Custom Quotes** - Create beautiful custom quotes with customizable fonts
 - 🔤 **Font Picker** - Extensive font selection with variants and subsets
 - 🌐 **RTL Support** - Full right-to-left language support
-- 📱 **Responsive Design** - Works on desktop and mobile devices
 
 ## Tech Stack
 
@@ -19,11 +17,6 @@ A web companion app for KOReader that lets you browse your e-books, highlights, 
 - **Font Selection**: Google Fonts API integration
 
 ## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Bun (recommended) or npm/pnpm
 
 ### Installation
 
@@ -47,7 +40,13 @@ Required variables:
 - `PUBLIC_APPWRITE_ENDPOINT` - Appwrite API endpoint
 - `PUBLIC_APPWRITE_PROJECT` - Appwrite project ID
 - `APPWRITE_API_KEY` - Appwrite API key (server-side)
-- `TMabot_API_TOKEN` - Telegram bot token (optional)
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token
+
+---
+
+- `PUBLIC_APPWRITE_DATABASE_ID` - Appwrite database id
+- `PUBLIC_APPWRITE_PROFILE_COLLECTION_ID` - Appwrite Profile table id
+- `PUBLIC_APPWRITE_HIGHLIGHT_COLLECTION_ID` - Appwrite highlights table id
 
 ### Development
 

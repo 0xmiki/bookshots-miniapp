@@ -349,7 +349,7 @@
 		</Button>
 	</Sheet.Trigger>
 
-	<Sheet.Content side="bottom" class="flex h-[59vh] w-full flex-col sm:max-w-md">
+	<Sheet.Content side="bottom" class="flex h-[59vh] w-full flex-col">
 		<div class="flex flex-1 flex-col gap-4 overflow-hidden px-3 py-4">
 			<!-- Search Input -->
 			<div class="relative">

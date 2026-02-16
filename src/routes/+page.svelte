@@ -36,9 +36,14 @@
 		})()
 	);
 
-	// Get recent highlights with pagination
+	// Get recent highlights with pagination (sorted by most recent first)
 	let displayedCount = $state(5);
-	let recentHighlights = $derived(app_state.profile?.highlights.slice(0, displayedCount) ?? []);
+	let recentHighlights = $derived(
+		app_state.profile?.highlights
+			.slice() // Create copy to avoid mutating original array
+			.sort((a, b) => new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime())
+			.slice(0, displayedCount) ?? []
+	);
 
 	// Calculate stats
 	let totalHighlights = $derived(app_state.profile?.highlights.length ?? 0);

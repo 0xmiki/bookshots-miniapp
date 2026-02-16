@@ -36,7 +36,7 @@
 	let searchQuery = $state('');
 	type LocalSortOption = SortOption;
 	let sortBy = $state<LocalSortOption>('page-asc');
-	let viewMode = $state<ViewMode>('carousel');
+	let viewMode = $state<ViewMode>('vertical');
 	let carouselIndex = $state(0);
 
 	// Get book key from page params
@@ -184,18 +184,22 @@
 							checked={sortBy === 'date-desc'}
 							onCheckedChange={() => (sortBy = 'date-desc')}
 						>
-							Date <SortDesc />
+							Latest
 						</DropdownMenu.CheckboxItem>
 						<DropdownMenu.CheckboxItem
 							checked={sortBy === 'date-asc'}
 							onCheckedChange={() => (sortBy = 'date-asc')}
 						>
-							Date <SortAsc />
+							Oldest
 						</DropdownMenu.CheckboxItem>
 					</DropdownMenu.Group>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
-			<Input class=" w-full" placeholder="Search Highlights" bind:value={searchQuery} />
+			<Input
+				class=" w-full"
+				placeholder={`Search ${bookData?.book?.title || 'Highlights'}`}
+				bind:value={searchQuery}
+			/>
 			<div class="flex gap-2">
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger>
