@@ -786,13 +786,18 @@
 		drawCanvas();
 	});
 
+	// Track if sliders have been initialized with calculated values
+	let slidersInitialized = $state(false);
+
+	// Initialize sliders once when display_text is first populated
 	$effect(() => {
-		if (custom_font_size.length > 0 || custom_width.length > 0 || custom_height.length > 0) {
-			return;
+		// Only initialize when we have content and sliders haven't been initialized yet
+		if (display_text && !slidersInitialized) {
+			slidersInitialized = true;
+			custom_font_size = [layout.fontSize];
+			custom_width = [layout.cardWidth];
+			custom_height = [layout.cardHeight];
 		}
-		custom_font_size = [layout.fontSize];
-		custom_width = [layout.cardWidth];
-		custom_height = [layout.cardHeight];
 	});
 
 	// Redraw canvas when variant changes (with delay for font loading)
@@ -1075,7 +1080,7 @@
 						<div class="flex items-center justify-between">
 							<label class="text-sm font-medium">Font Size</label>
 							<span class="font-mono text-xs text-muted-foreground">
-								{custom_font_size.length > 0 ? custom_font_size[0] : 'Auto'}
+								{custom_font_size.length > 0 ? custom_font_size[0] : layout.fontSize}
 							</span>
 						</div>
 						<div class="flex w-full gap-3">
@@ -1118,7 +1123,7 @@
 						<div class="flex items-center justify-between">
 							<label class="text-sm font-medium">Card Width</label>
 							<span class="font-mono text-xs text-muted-foreground">
-								{custom_width.length > 0 ? custom_width[0] : 'Auto'}
+								{custom_width.length > 0 ? custom_width[0] : layout.cardWidth}
 							</span>
 						</div>
 						<div class="flex w-full gap-3">
@@ -1160,7 +1165,7 @@
 						<div class="flex items-center justify-between">
 							<label class="text-sm font-medium">Card Height</label>
 							<span class="font-mono text-xs text-muted-foreground">
-								{custom_height.length > 0 ? custom_height[0] : 'Auto'}
+								{custom_height.length > 0 ? custom_height[0] : layout.cardHeight}
 							</span>
 						</div>
 						<div class="flex w-full gap-3">
