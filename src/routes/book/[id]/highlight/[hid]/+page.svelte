@@ -865,12 +865,14 @@
 
 {#if selected_highlight || isCustomQuote}
 	<div class="mt-5 px-3">
-		<div class="flex w-full justify-center overflow-auto">
-			<canvas
-				bind:this={canvas}
-				class="max-w-full rounded-lg border shadow-sm"
-				style="width: {layout.cardWidth / 2}px; height: {layout.cardHeight / 2}px;"
-			></canvas>
+		<div class="overflow-x-auto">
+			<div class="flex justify-center px-4" style="min-width: max-content;">
+				<canvas
+					bind:this={canvas}
+					class="shrink-0 rounded-lg border shadow-sm"
+					style="width: {layout.cardWidth / 2}px; height: {layout.cardHeight / 2}px;"
+				></canvas>
+			</div>
 		</div>
 
 		<Tabs.Root bind:value={selected_tab} class="mt-4">
