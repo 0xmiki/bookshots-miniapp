@@ -35,7 +35,7 @@
 		Loader,
 		RotateCcw,
 		Trash,
-		Image
+		Image as ImageIcon
 	} from '@lucide/svelte';
 	import ButtonGroup from '$lib/components/ui/button-group/button-group.svelte';
 	import { goto } from '$app/navigation';
@@ -1283,7 +1283,7 @@
 												<RotateCcw />
 											</Button>
 										</div>
-										<Button variant="outline" onclick={clearImage}>Clear <Image /></Button>
+										<Button variant="outline" onclick={clearImage}>Clear <ImageIcon /></Button>
 									</div>
 								{:else}
 									<label
