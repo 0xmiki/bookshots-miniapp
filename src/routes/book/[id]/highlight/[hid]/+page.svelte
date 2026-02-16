@@ -33,7 +33,9 @@
 		Minus,
 		Plus,
 		Loader,
-		RotateCcw
+		RotateCcw,
+		Trash,
+		Image
 	} from '@lucide/svelte';
 	import ButtonGroup from '$lib/components/ui/button-group/button-group.svelte';
 	import { goto } from '$app/navigation';
@@ -1246,41 +1248,42 @@
 										</Button>
 									</div> -->
 									<div class="flex w-full justify-between px-3">
-										<ButtonGroup>
+										<div class="flex gap-3">
+											<ButtonGroup>
+												<Button
+													variant="outline"
+													size="icon"
+													onclick={() => (bg_offset_y -= BG_MOVE_STEP)}><ChevronUp /></Button
+												>
+												<Button
+													variant="outline"
+													size="icon"
+													onclick={() => (bg_offset_y += BG_MOVE_STEP)}><ChevronDown /></Button
+												>
+												<Button
+													variant="outline"
+													size="icon"
+													onclick={() => (bg_offset_x -= BG_MOVE_STEP)}><ChevronLeft /></Button
+												>
+												<Button
+													variant="outline"
+													size="icon"
+													onclick={() => (bg_offset_x += BG_MOVE_STEP)}><ChevronRight /></Button
+												>
+											</ButtonGroup>
 											<Button
 												variant="outline"
 												size="icon"
-												onclick={() => (bg_offset_y -= BG_MOVE_STEP)}><ChevronUp /></Button
+												onclick={() => {
+													bg_offset_x = 0;
+													bg_offset_y = 0;
+												}}
+												title="Reset position"
 											>
-											<Button
-												variant="outline"
-												size="icon"
-												onclick={() => (bg_offset_y += BG_MOVE_STEP)}><ChevronDown /></Button
-											>
-										</ButtonGroup>
-										<ButtonGroup>
-											<Button
-												variant="outline"
-												size="icon"
-												onclick={() => (bg_offset_x -= BG_MOVE_STEP)}><ChevronLeft /></Button
-											>
-											<Button
-												variant="outline"
-												size="icon"
-												onclick={() => (bg_offset_x += BG_MOVE_STEP)}><ChevronRight /></Button
-											>
-										</ButtonGroup>
-										<Button
-											variant="outline"
-											size="icon"
-											onclick={() => {
-												bg_offset_x = 0;
-												bg_offset_y = 0;
-											}}
-											title="Reset position"
-										>
-											<RotateCcw />
-										</Button>
+												<RotateCcw />
+											</Button>
+										</div>
+										<Button variant="outline" onclick={clearImage}>Clear <Image /></Button>
 									</div>
 								{:else}
 									<label
