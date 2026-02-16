@@ -35,7 +35,9 @@
 		Loader,
 		RotateCcw,
 		Trash,
-		Image as ImageIcon
+		Image as ImageIcon,
+		ArrowUp,
+		ArrowDown
 	} from '@lucide/svelte';
 	import ButtonGroup from '$lib/components/ui/button-group/button-group.svelte';
 	import { goto } from '$app/navigation';
@@ -110,6 +112,7 @@
 	let show_title = $state(true);
 	let show_author = $state(true);
 	let show_book_detail = $state(true);
+	let swap_layout = $state(false);
 
 	// ── Text Decoration State ──
 	let is_bold = $state(false);
@@ -267,7 +270,7 @@
 			type: 'solid',
 			colors: ['#ffffff'],
 			textColor: '#1a1a1a',
-			metaColor: '#666666',
+			metaColor: '#1a1a1a',
 			preview: '#ffffff'
 		},
 		{
@@ -276,7 +279,7 @@
 			type: 'solid',
 			colors: ['#1a1a2e'],
 			textColor: '#e0e0e0',
-			metaColor: '#999999',
+			metaColor: '#e0e0e0',
 			preview: '#1a1a2e'
 		},
 		{
@@ -285,7 +288,7 @@
 			type: 'solid',
 			colors: ['#f5f0e8'],
 			textColor: '#3d3229',
-			metaColor: '#8a7b6b',
+			metaColor: '#3d3229',
 			preview: '#f5f0e8'
 		},
 		{
@@ -294,7 +297,7 @@
 			type: 'gradient',
 			colors: ['#0f2027', '#203a43', '#2c5364'],
 			textColor: '#e0f0ff',
-			metaColor: '#8ab4d6',
+			metaColor: '#e0f0ff',
 			preview: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)'
 		},
 		{
@@ -303,7 +306,7 @@
 			type: 'gradient',
 			colors: ['#ee9ca7', '#ffdde1'],
 			textColor: '#2d1f21',
-			metaColor: '#5a3d42',
+			metaColor: '#2d1f21',
 			preview: 'linear-gradient(135deg, #ee9ca7, #ffdde1)'
 		},
 		{
@@ -312,7 +315,7 @@
 			type: 'gradient',
 			colors: ['#134e5e', '#71b280'],
 			textColor: '#f0fff0',
-			metaColor: '#c0e0c0',
+			metaColor: '#f0fff0',
 			preview: 'linear-gradient(135deg, #134e5e, #71b280)'
 		},
 		{
@@ -321,7 +324,7 @@
 			type: 'gradient',
 			colors: ['#0f0c29', '#302b63', '#24243e'],
 			textColor: '#e8e0ff',
-			metaColor: '#a89fd4',
+			metaColor: '#e8e0ff',
 			preview: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)'
 		},
 		{
@@ -330,7 +333,7 @@
 			type: 'gradient',
 			colors: ['#f7971e', '#ffd200'],
 			textColor: '#2a1f00',
-			metaColor: '#5c4a00',
+			metaColor: '#2a1f00',
 			preview: 'linear-gradient(135deg, #f7971e, #ffd200)'
 		},
 		{
@@ -339,7 +342,7 @@
 			type: 'gradient',
 			colors: ['#e55d87', '#5fc3e4'],
 			textColor: '#ffffff',
-			metaColor: '#e0e0e0',
+			metaColor: '#ffffff',
 			preview: 'linear-gradient(135deg, #e55d87, #5fc3e4)'
 		},
 		{
@@ -348,7 +351,7 @@
 			type: 'solid',
 			colors: ['#2c2c2c'],
 			textColor: '#f5f5f5',
-			metaColor: '#aaaaaa',
+			metaColor: '#f5f5f5',
 			preview: '#2c2c2c'
 		},
 		{
@@ -357,7 +360,7 @@
 			type: 'solid',
 			colors: ['#d4e2c8'],
 			textColor: '#2d3a24',
-			metaColor: '#5a6b4f',
+			metaColor: '#2d3a24',
 			preview: '#d4e2c8'
 		},
 		{
@@ -366,7 +369,7 @@
 			type: 'gradient',
 			colors: ['#c9d6ff', '#e2e2e2'],
 			textColor: '#2a2a3d',
-			metaColor: '#5c5c7a',
+			metaColor: '#2a2a3d',
 			preview: 'linear-gradient(135deg, #c9d6ff, #e2e2e2)'
 		}
 	];
@@ -422,6 +425,15 @@
 		bg_image_url = '';
 		bg_offset_x = 0;
 		bg_offset_y = 0;
+	}
+
+	function changeImage() {
+		// clearImage();
+		// Use a small timeout to ensure the state is cleared before opening the file dialog
+		const fileInput = document.getElementById('bg-image-input') as HTMLInputElement;
+		if (fileInput) {
+			fileInput.click();
+		}
 	}
 
 	function drawCanvas() {
@@ -651,10 +663,7 @@
 			return y;
 		}
 
-		// Draw Quote
-		wrapText(display_text, padding, padding, fontSize, currentTextColor, true);
-
-		// Book Info at bottom
+		// Book Info font size
 		const infoFontSize = 33;
 
 		function getWrappedHeight(text: string, fSize: number) {
@@ -715,13 +724,33 @@
 
 		const titleHeight = show_title ? getWrappedHeight(display_title, infoFontSize) : 0;
 		const authorHeight = show_author ? getWrappedHeight(display_author, infoFontSize) : 0;
-		let infoY = cardHeight - padding - titleHeight - authorHeight;
 
-		if (show_author) {
-			infoY = wrapText(display_author, padding, infoY, infoFontSize, currentMetaColor);
-		}
-		if (show_title) {
-			wrapText(display_title, padding, infoY, infoFontSize, currentMetaColor);
+		if (swap_layout) {
+			// Book Info at top
+			let infoY = padding;
+			if (show_title) {
+				infoY = wrapText(display_title, padding, infoY, infoFontSize, currentMetaColor);
+			}
+			if (show_author) {
+				infoY = wrapText(display_author, padding, infoY, infoFontSize, currentMetaColor);
+			}
+
+			// Draw Quote at bottom
+			const textHeight = getWrappedHeight(display_text, fontSize);
+			let textY = cardHeight - padding - textHeight;
+			wrapText(display_text, padding, textY, fontSize, currentTextColor, true);
+		} else {
+			// Draw Quote at top (default)
+			wrapText(display_text, padding, padding, fontSize, currentTextColor, true);
+
+			// Book Info at bottom
+			let infoY = cardHeight - padding - titleHeight - authorHeight;
+			if (show_author) {
+				infoY = wrapText(display_author, padding, infoY, infoFontSize, currentMetaColor);
+			}
+			if (show_title) {
+				wrapText(display_title, padding, infoY, infoFontSize, currentMetaColor);
+			}
 		}
 	}
 
@@ -753,7 +782,17 @@
 		const _bgOffsetY = bg_offset_y;
 		const _mainFont = app_state.main_font;
 		const _subFont = app_state.sub_font;
+		const _swapLayout = swap_layout;
 		drawCanvas();
+	});
+
+	$effect(() => {
+		if (custom_font_size.length > 0 || custom_width.length > 0 || custom_height.length > 0) {
+			return;
+		}
+		custom_font_size = [layout.fontSize];
+		custom_width = [layout.cardWidth];
+		custom_height = [layout.cardHeight];
 	});
 
 	// Redraw canvas when variant changes (with delay for font loading)
@@ -924,6 +963,21 @@
 									onclick={() => (text_align = 'right')}
 								>
 									<AlignRight class="h-4 w-4" />
+								</Button>
+
+								<div class="mx-1 w-[1px] bg-border"></div>
+
+								<Button
+									size="icon"
+									variant={swap_layout ? 'default' : 'ghost'}
+									class="h-8 w-8"
+									onclick={() => (swap_layout = !swap_layout)}
+								>
+									{#if swap_layout}
+										<ArrowDown class="h-4 w-4" />
+									{:else}
+										<ArrowUp class="h-4 w-4" />
+									{/if}
 								</Button>
 							</div>
 							<Textarea
@@ -1283,7 +1337,7 @@
 												<RotateCcw />
 											</Button>
 										</div>
-										<Button variant="outline" onclick={clearImage}>Clear <ImageIcon /></Button>
+										<Button variant="outline" onclick={changeImage}>Change <ImageIcon /></Button>
 									</div>
 								{:else}
 									<label
@@ -1310,6 +1364,7 @@
 											<p class="text-xs text-muted-foreground/70">JPG, PNG, WebP supported</p>
 										</div>
 										<input
+											id="bg-image-input"
 											type="file"
 											accept="image/*"
 											class="hidden"
