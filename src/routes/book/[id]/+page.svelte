@@ -1,29 +1,25 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import BookCard from '$lib/components/book-card.svelte';
-	import HighlightCard from '$lib/components/highlight-card.svelte';
 	import HighlightCarosel from '$lib/components/highlight-carosel.svelte';
 	import SearchResults from '$lib/components/search-results.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import ButtonGroup from '$lib/components/ui/button-group/button-group.svelte';
 	import { Input } from '$lib/components/ui/input';
-	import { init } from '$lib/functions/init';
+	import { delete_highlight } from '$lib/functions/highlight';
 	import { app_state, THEME_PRESETS } from '$lib/state/state.svelte';
 	import type { Book, Highlight } from '$lib/types';
 	import {
-		ChevronDown,
-		ChevronUp,
 		Filter,
 		GalleryHorizontal,
 		GalleryVertical,
-		List,
 		Palette,
 		SortAsc,
-		SortDesc
+		SortDesc,
+		Trash2,
+		Check,
+		X
 	} from '@lucide/svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-	import ScrollArea from '$lib/components/ui/scroll-area/scroll-area.svelte';
 	import {
 		getBookSettings,
 		saveSortBy,
@@ -86,6 +82,78 @@
 			return { book, bookHighlights, filteredHighlights };
 		})()
 	);
+
+	// Get all highlight IDs for the current book (for select all functionality)
+	let currentBookHighlightIds = $derived(
+		bookData?.bookHighlights.map((h) => h.$id).filter(Boolean) || []
+	);
+
+	// Calculate selected count
+	let selectedCount = $derived(app_state.highlight_ids_to_delete?.length || 0);
+
+	// Select all highlights in current book
+	function selectAllHighlights() {
+		app_state.highlight_ids_to_delete = [...currentBookHighlightIds];
+	}
+
+	// Deselect all highlights
+	function deselectAllHighlights() {
+		app_state.highlight_ids_to_delete = [];
+	}
+
+	// Delete selected highlights
+	async function deleteSelectedHighlights() {
+		const idsToDelete = app_state.highlight_ids_to_delete || [];
+		for (const highlightId of idsToDelete) {
+			await delete_highlight(highlightId);
+		}
+		// Reset selection after deletion
+		app_state.highlight_ids_to_delete = [];
+		app_state.delete_mode = false;
+	}
+
+	// Find duplicate highlights in current book (based on text content)
+	let duplicateCount = $derived(
+		(() => {
+			if (!bookData?.bookHighlights) return 0;
+			const textCounts: Record<string, number> = {};
+			for (const h of bookData.bookHighlights) {
+				const text = h.text?.toLowerCase().trim() || '';
+				if (text) {
+					textCounts[text] = (textCounts[text] || 0) + 1;
+				}
+			}
+			// Count total duplicates (all extras beyond the first occurrence)
+			return Object.values(textCounts).reduce((sum, count) => sum + (count > 1 ? count - 1 : 0), 0);
+		})()
+	);
+
+	// Delete duplicate highlights, keeping only one copy
+	async function deleteDuplicates() {
+		if (!bookData?.bookHighlights) return;
+
+		// Group highlights by text content
+		const textToHighlights: Record<string, Highlight[]> = {};
+		for (const h of bookData.bookHighlights) {
+			const text = h.text?.toLowerCase().trim() || '';
+			if (text) {
+				if (!textToHighlights[text]) {
+					textToHighlights[text] = [];
+				}
+				textToHighlights[text].push(h);
+			}
+		}
+
+		// Delete all duplicates except the first one for each text
+		for (const highlights of Object.values(textToHighlights)) {
+			if (highlights.length > 1) {
+				// Keep the first one, delete the rest
+				for (let i = 1; i < highlights.length; i++) {
+					await delete_highlight(highlights[i].$id);
+				}
+			}
+		}
+	}
 
 	// let allbooks = $derived(() => {
 	// 	if (!app_state.profile) {
@@ -245,19 +313,74 @@
 						<GalleryHorizontal />
 					{/if}
 				</Button>
+				<Button
+					onclick={() => (app_state.delete_mode = !app_state.delete_mode)}
+					size="icon"
+					variant={app_state.delete_mode ? 'destructive' : 'outline'}
+				>
+					{#if app_state.delete_mode}
+						<X />
+					{:else}
+						<Trash2 />
+					{/if}
+				</Button>
 			</div>
 		</div>
-	</div>
+		<!-- Delete mode submenu -->
+		{#if app_state.delete_mode}
+			<div
+				class="flex flex-row items-center justify-between gap-3 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-2"
+			>
+				<div class="flex items-center gap-2">
+					{#if selectedCount > 0}
+						<Button variant="outline" size="sm" onclick={deselectAllHighlights}>
+							<Check class="mr-1 h-4 w-4" />
+							Deselect All
+						</Button>
+					{:else}
+						<Button variant="outline" size="sm" onclick={selectAllHighlights}>
+							<Check class="mr-1 h-4 w-4" />
+							Select All
+						</Button>
+					{/if}
+				</div>
+				<div class="flex items-center gap-2 text-sm text-destructive">
+					<span>{selectedCount} highlight{selectedCount !== 1 ? 's' : ''}</span>
+				</div>
+				<Button
+					size="sm"
+					variant="destructive"
+					disabled={selectedCount === 0}
+					onclick={deleteSelectedHighlights}
+				>
+					<Trash2 class="mr-1 h-4 w-4" />
+					Delete
+				</Button>
+			</div>
+		{/if}
+		<!-- Delete duplicates row - always visible when duplicates detected -->
+		{#if duplicateCount > 0}
+			<div class="flex flex-row items-center justify-between gap-3 rounded-lg px-4 py-2">
+				<div class="flex items-center gap-2 text-sm text-muted-foreground">
+					<span>{duplicateCount} duplicate{duplicateCount !== 1 ? 's' : ''} detected</span>
+				</div>
+				<Button size="sm" variant="outline" onclick={deleteDuplicates}>
+					<Trash2 class="mr-1 h-4 w-4" />
+					Delete Duplicates
+				</Button>
+			</div>
+		{/if}
 
-	{#if searchQuery}
-		<div class="mt-2 px-4">
-			<SearchResults highlights={bookData.filteredHighlights} />
-		</div>
-	{:else}
-		<div class="mt-2 flex w-full items-center justify-center">
-			<HighlightCarosel highlights={bookData.bookHighlights} mode={viewMode} {carouselIndex} />
-		</div>
-	{/if}
+		{#if searchQuery}
+			<div class="mt-2 px-4">
+				<SearchResults highlights={bookData.filteredHighlights} />
+			</div>
+		{:else}
+			<div class="mt-2 flex w-full items-center justify-center">
+				<HighlightCarosel highlights={bookData.bookHighlights} mode={viewMode} {carouselIndex} />
+			</div>
+		{/if}
+	</div>
 	<!-- Might be distracting... why would a user want to switch between books... usually they read one at a time -->
 	<!-- <div class="absolute bottom-0 w-full border-card bg-card px-2 py-1">
 		<ScrollArea orientation="horizontal" class="w-full">

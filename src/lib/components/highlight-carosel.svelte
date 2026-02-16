@@ -93,12 +93,7 @@
 		<ScrollArea orientation="vertical" class="h-[80vh] w-full">
 			<Carousel.Content>
 				{#each highlights as highlight, i}
-					<Carousel.Item
-						class=""
-						onclick={() => {
-							goto(`/book/${highlight.author}::${highlight.title}/highlight/${highlight.$id}`);
-						}}
-					>
+					<Carousel.Item>
 						<HighlightCard {highlight} />
 
 						<div class=" flex items-center justify-between px-2 py-1">
@@ -124,20 +119,7 @@
 	<ScrollArea class="h-[80vh] w-[83%]" orientation="vertical">
 		<div class="flex flex-col gap-4 py-2">
 			{#each highlights as highlight, i}
-				<div
-					id="highlight-{highlight.$id}"
-					class="cursor-pointer"
-					role="button"
-					tabindex="0"
-					onclick={() => {
-						goto(`/book/${highlight.author}::${highlight.title}/highlight/${highlight.$id}`);
-					}}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							goto(`/book/${highlight.author}::${highlight.title}/highlight/${highlight.$id}`);
-						}
-					}}
-				>
+				<div id="highlight-{highlight.$id}" class="cursor-pointer">
 					<HighlightCard {highlight} />
 				</div>
 			{/each}

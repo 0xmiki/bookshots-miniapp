@@ -5,6 +5,7 @@
 	import { Image } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import { getTextDirection } from '$lib/utils/rtl';
+	import Checkbox from './ui/checkbox/checkbox.svelte';
 
 	let { highlight }: { highlight: Highlight } = $props();
 
@@ -46,25 +47,61 @@
 		return `linear-gradient(135deg, ${theme.colors.join(', ')})`;
 	}
 
-	// Get font family
-	function getFontFamily(): string {
-		return app_state.main_font ? app_state.main_font.family : 'serif';
+	function add_or_remove_id(highlightId: string) {
+		if (!app_state.highlight_ids_to_delete) {
+			app_state.highlight_ids_to_delete = [];
+		}
+		const index = app_state.highlight_ids_to_delete.indexOf(highlightId);
+		if (index === -1) {
+			app_state.highlight_ids_to_delete.push(highlightId);
+		} else {
+			app_state.highlight_ids_to_delete.splice(index, 1);
+		}
 	}
 </script>
 
-<div class="flex w-full justify-center">
+<div class="flex w-full items-center justify-center gap-3">
 	<div
-		class="cursor-pointer overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl"
+		class="cursor-pointer overflow-hidden rounded-xl {app_state.delete_mode &&
+		app_state.highlight_ids_to_delete?.includes(highlight.$id || '')
+			? 'ring-2 ring-destructive'
+			: ''} shadow-lg transition-all duration-300 hover:shadow-xl"
 		style="width: {cardWidth}; background: {getThemeBackground(
 			theme
 		)}; color: {theme.textColor}; font-family: 'serif'; font-size: {fontSize}px; line-height: 1.4; direction: {textDirection};"
 		onclick={() => {
-			const bookKey = `${highlight.author}::${highlight.title}`;
-			goto(`/book/${bookKey}/highlight/${highlight.$id}`);
+			if (app_state.delete_mode) {
+				add_or_remove_id(highlight.$id);
+				return;
+			} else {
+				const bookKey = `${highlight.author}::${highlight.title}`;
+				goto(`/book/${bookKey}/highlight/${highlight.$id}`);
+			}
 		}}
+		onkeydown={(e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				if (app_state.delete_mode) {
+					add_or_remove_id(highlight.$id);
+					return;
+				} else {
+					const bookKey = `${highlight.author}::${highlight.title}`;
+					goto(`/book/${bookKey}/highlight/${highlight.$id}`);
+				}
+			}
+		}}
+		role="button"
+		tabindex="0"
 	>
 		<div class="px-4 py-3">
-			<p class="leading-relaxed break-words whitespace-pre-wrap">{highlight.text || ''}</p>
+			<p class="leading-relaxed wrap-break-word whitespace-pre-wrap">{highlight.text || ''}</p>
 		</div>
 	</div>
+	<!-- only show this when user is in deleting mode -->
+	{#if app_state.delete_mode}
+		<Checkbox
+			checked={app_state.highlight_ids_to_delete?.includes(highlight.$id || '')}
+			onCheckedChange={() => add_or_remove_id(highlight.$id || '')}
+		/>
+	{/if}
 </div>

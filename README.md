@@ -68,6 +68,25 @@ bun run build
 bun run preview
 ```
 
+### Using with a Proxy/Reverse Proxy
+
+If you're using a tunneling service like ngrok, zrok, outray, or any other reverse proxy to expose your local development server, you need to update the `allowedHosts` in [`vite.config.ts`](vite.config.ts:1).
+
+1. Uncomment the `server` block in `vite.config.ts`
+2. Replace `'friendly-67.outray.app'` with your actual proxy URL (without the `https://` prefix)
+
+```ts
+server: {
+    host: true, // or '0.0.0.0'
+    cors: {
+        origin: '*'
+    },
+    allowedHosts: ['your-proxy-url.example.com']
+}
+```
+
+This allows the development server to respond correctly when accessed through the proxy.
+
 ## Project Structure
 
 ```

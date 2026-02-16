@@ -130,6 +130,8 @@ interface AppState {
 	sub_font: GoogleFont | null;
 	highlight_theme: string;
 	redirecting_to_highlight: boolean;
+	delete_mode: boolean;
+	highlight_ids_to_delete?: string[];
 }
 
 export const app_state: AppState = $state({
@@ -140,7 +142,9 @@ export const app_state: AppState = $state({
 	main_font: null,
 	sub_font: null,
 	highlight_theme: 'charcoal',
-	redirecting_to_highlight: false
+	redirecting_to_highlight: false,
+	delete_mode: false,
+	highlight_ids_to_delete: []
 });
 
 export function applyTheme(themeId: string) {

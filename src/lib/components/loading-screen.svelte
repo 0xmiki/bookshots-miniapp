@@ -9,9 +9,9 @@
 		<div class="relative">
 			<div class="h-12 w-12 animate-spin rounded-full border-4 border-muted border-t-primary"></div>
 		</div>
-		<div class="flex flex-col items-center gap-1 text-center">
+		<!-- <div class="flex flex-col items-center gap-1 text-center">
 			<p class="text-sm font-medium text-foreground">{title}</p>
 			<p class="text-xs text-muted-foreground">{description}</p>
-		</div>
+		</div> -->
 	</div>
 </div>

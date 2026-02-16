@@ -10,6 +10,6 @@ export default defineConfig({
 	// 	cors: {
 	// 		origin: '*'
 	// 	},
-	// 	allowedHosts: ['creative-sloth.outray.app']
+	// 	allowedHosts: ['friendly-67.outray.app']
 	// }
 });
