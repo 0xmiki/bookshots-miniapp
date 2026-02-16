@@ -1279,6 +1279,14 @@
 						<!-- ── Image Mode ── -->
 					{:else if bg_mode === 'image'}
 						<div class="flex flex-col gap-5">
+							<!-- Hidden file input always in DOM for changeImage() to work -->
+							<input
+								id="bg-image-input"
+								type="file"
+								accept="image/*"
+								class="hidden"
+								onchange={handleImageUpload}
+							/>
 							<!-- Upload Area -->
 							<div class="space-y-2">
 								{#if bg_image_url}
@@ -1348,6 +1356,7 @@
 									</div>
 								{:else}
 									<label
+										for="bg-image-input"
 										class="flex h-40 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/50 transition-colors hover:border-muted-foreground/50 hover:bg-muted"
 									>
 										<svg
@@ -1370,13 +1379,6 @@
 											</p>
 											<p class="text-xs text-muted-foreground/70">JPG, PNG, WebP supported</p>
 										</div>
-										<input
-											id="bg-image-input"
-											type="file"
-											accept="image/*"
-											class="hidden"
-											onchange={handleImageUpload}
-										/>
 									</label>
 								{/if}
 							</div>
