@@ -120,6 +120,73 @@
 	let is_underline = $state(false);
 	let text_align: 'left' | 'center' | 'right' = $state('left');
 
+	// ── Text Format Handler (Tags for specific word highlighting) ──
+	function handleFormat(tag: 'b' | 'i' | 'u') {
+		const textarea = document.getElementById('highlight-text') as HTMLTextAreaElement;
+		if (!textarea) {
+			// Fallback to global setting if element not found
+			if (tag === 'b') is_bold = !is_bold;
+			if (tag === 'i') is_italic = !is_italic;
+			if (tag === 'u') is_underline = !is_underline;
+			return;
+		}
+
+		const start = textarea.selectionStart;
+		const end = textarea.selectionEnd;
+
+		if (start !== end) {
+			// Apply tag strictly to selected text bounds
+			let selectedText = display_text.substring(start, end);
+			const before = display_text.substring(0, start);
+			const after = display_text.substring(end);
+
+			const openTag = `<${tag}>`;
+			const closeTag = `</${tag}>`;
+
+			// Check if selection itself is perfectly wrapped, allow unwrapping
+			if (selectedText.startsWith(openTag) && selectedText.endsWith(closeTag)) {
+				selectedText = selectedText.substring(
+					openTag.length,
+					selectedText.length - closeTag.length
+				);
+				display_text = before + selectedText + after;
+				setTimeout(() => {
+					textarea.focus();
+					textarea.setSelectionRange(start, start + selectedText.length);
+				}, 0);
+				return;
+			}
+
+			// Check if tags perfectly surround the selection, allow unwrapping
+			if (before.endsWith(openTag) && after.startsWith(closeTag)) {
+				display_text =
+					before.substring(0, before.length - openTag.length) +
+					selectedText +
+					after.substring(closeTag.length);
+				setTimeout(() => {
+					textarea.focus();
+					textarea.setSelectionRange(start - openTag.length, end - openTag.length);
+				}, 0);
+				return;
+			}
+
+			// Otherwise inject the tags
+			display_text = before + openTag + selectedText + closeTag + after;
+			setTimeout(() => {
+				textarea.focus();
+				textarea.setSelectionRange(
+					start,
+					start + openTag.length + selectedText.length + closeTag.length
+				);
+			}, 0);
+		} else {
+			// Toggle global style if no text is selected
+			if (tag === 'b') is_bold = !is_bold;
+			if (tag === 'i') is_italic = !is_italic;
+			if (tag === 'u') is_underline = !is_underline;
+		}
+	}
+
 	// ── Font Size State ──
 	let custom_font_size = $state<number[]>([]);
 
@@ -428,7 +495,6 @@
 	}
 
 	function changeImage() {
-		// clearImage();
 		// Use a small timeout to ensure the state is cleared before opening the file dialog
 		const fileInput = document.getElementById('bg-image-input') as HTMLInputElement;
 		if (fileInput) {
@@ -449,7 +515,6 @@
 
 		// ── Draw Background ──
 		if (bg_mode === 'image' && bg_image) {
-			// Draw uploaded image covering the canvas (cover fit)
 			const imgRatio = bg_image.width / bg_image.height;
 			const canvasRatio = cardWidth / cardHeight;
 			let drawWidth: number, drawHeight: number, offsetX: number, offsetY: number;
@@ -467,7 +532,6 @@
 			}
 			ctx.drawImage(bg_image, offsetX, offsetY, drawWidth, drawHeight);
 
-			// Optional overlay for readability
 			if (overlay_enabled) {
 				ctx.fillStyle =
 					overlay_color +
@@ -477,11 +541,9 @@
 				ctx.fillRect(0, 0, cardWidth, cardHeight);
 			}
 		} else if (bg_mode === 'image' && !bg_image) {
-			// No image uploaded yet — show placeholder
 			ctx.fillStyle = '#f0f0f0';
 			ctx.fillRect(0, 0, cardWidth, cardHeight);
 		} else {
-			// Theme mode
 			const theme = THEME_PRESETS.find((t) => t.id === selected_theme_id);
 			if (theme) {
 				if (theme.type === 'solid') {
@@ -498,7 +560,6 @@
 			}
 		}
 
-		// ── Determine text colors ──
 		let currentTextColor = text_color;
 		let currentMetaColor = meta_color;
 		if (bg_mode === 'theme') {
@@ -512,6 +573,142 @@
 		ctx.textBaseline = 'top';
 		const maxWidth = cardWidth - padding * 2;
 
+		// ── Typography Toolkit ──
+		const getVariantParts = (variant: string) => {
+			if (variant === 'regular') return { weight: '400', style: '' };
+			if (variant.includes('italic')) {
+				const weight = variant.replace('italic', '');
+				return { weight: weight || '400', style: 'italic ' };
+			}
+			return { weight: variant, style: '' };
+		};
+
+		function getFontString(fSize: number, isMainText: boolean, bold: boolean, italic: boolean) {
+			let fontWeight = '400';
+			let variantStyle = '';
+
+			if (isMainText && app_state.main_font?.selectedVariant) {
+				const parts = getVariantParts(app_state.main_font.selectedVariant);
+				fontWeight = parts.weight;
+				variantStyle = parts.style;
+			} else if (!isMainText && app_state.sub_font?.selectedVariant) {
+				const parts = getVariantParts(app_state.sub_font.selectedVariant);
+				fontWeight = parts.weight;
+				variantStyle = parts.style;
+			}
+
+			let fontStyle = '';
+			if (italic || variantStyle.includes('italic')) fontStyle = 'italic ';
+
+			if (bold) fontWeight = 'bold';
+
+			const fontFamily =
+				isMainText && app_state.main_font
+					? app_state.main_font.family
+					: isMainText
+						? 'serif'
+						: app_state.sub_font
+							? app_state.sub_font.family
+							: 'sans-serif';
+
+			return `${fontStyle}${fontWeight} ${fSize}px "${fontFamily}"`;
+		}
+
+		// Line builder that gracefully parses lightweight tags <b> <i> <u>
+		function buildLines(text: string, fSize: number, isMainText: boolean) {
+			const paragraphs = text.split(/\\n|\n/);
+			const allLines: { tokens: any[]; width: number }[] = [];
+
+			const baseBold = isMainText ? is_bold : false;
+			const baseItalic = isMainText ? is_italic : false;
+			const baseUnderline = isMainText ? is_underline : false;
+
+			// Regex to separate units properly maintaining whitespace and separating CJK chars for wrap measurements
+			const regex =
+				/([\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f])|(\s+)|([^\s\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]+)/g;
+
+			for (let p = 0; p < paragraphs.length; p++) {
+				const paragraph = paragraphs[p].trim();
+				if (paragraph.length === 0) {
+					allLines.push({ tokens: [], width: 0 }); // Retain empty lines
+					continue;
+				}
+
+				// Tokenize by HTML-style tags
+				const parts = paragraph.split(/(<\/?(?:b|i|u)>)/g);
+				let currentBold = baseBold;
+				let currentItalic = baseItalic;
+				let currentUnderline = baseUnderline;
+
+				const styleTokens: any[] = [];
+				for (const part of parts) {
+					if (part === '<b>') currentBold = true;
+					else if (part === '</b>') currentBold = false;
+					else if (part === '<i>') currentItalic = true;
+					else if (part === '</i>') currentItalic = false;
+					else if (part === '<u>') currentUnderline = true;
+					else if (part === '</u>') currentUnderline = false;
+					else if (part.length > 0) {
+						styleTokens.push({
+							text: part,
+							bold: currentBold,
+							italic: currentItalic,
+							underline: currentUnderline
+						});
+					}
+				}
+
+				let currentLine = { tokens: [] as any[], width: 0 };
+				const pushLine = () => {
+					if (currentLine.tokens.length > 0) {
+						allLines.push(currentLine);
+						currentLine = { tokens: [], width: 0 };
+					}
+				};
+
+				for (const st of styleTokens) {
+					ctx!.font = getFontString(fSize, isMainText, st.bold, st.italic);
+					const units = st.text.match(regex) || [];
+
+					for (const unit of units) {
+						ctx!.font = getFontString(fSize, isMainText, st.bold, st.italic);
+						const unitWidth = ctx!.measureText(unit).width;
+
+						if (currentLine.width + unitWidth > maxWidth && currentLine.width > 0) {
+							if (/^\s+$/.test(unit)) continue; // Keep trailing whitespace out of bounds invisible
+							pushLine();
+						}
+
+						// Append to line
+						const lastToken = currentLine.tokens[currentLine.tokens.length - 1];
+						if (
+							lastToken &&
+							lastToken.bold === st.bold &&
+							lastToken.italic === st.italic &&
+							lastToken.underline === st.underline
+						) {
+							const testText = lastToken.text + unit;
+							const testWidth = ctx!.measureText(testText).width;
+							currentLine.width = currentLine.width - lastToken.width + testWidth;
+							lastToken.text = testText;
+							lastToken.width = testWidth;
+						} else {
+							currentLine.tokens.push({
+								text: unit,
+								bold: st.bold,
+								italic: st.italic,
+								underline: st.underline,
+								width: unitWidth
+							});
+							currentLine.width += unitWidth;
+						}
+					}
+				}
+				if (currentLine.tokens.length > 0) pushLine();
+			}
+			return allLines;
+		}
+
 		function wrapText(
 			text: string,
 			x: number,
@@ -520,242 +717,98 @@
 			color: string,
 			isMainText: boolean = false
 		) {
-			ctx!.fillStyle = color;
-
-			let fontStyle = '';
-			if (isMainText) {
-				if (is_italic) fontStyle += 'italic ';
-				if (is_bold) fontStyle += 'bold ';
-			}
-
-			// Get font weight and style from selected variant
-			let fontWeight = '400';
-			let variantStyle = '';
-
-			const getVariantParts = (variant: string) => {
-				// Handle variants like "400italic", "700italic", "regular", "700", etc.
-				if (variant === 'regular') {
-					return { weight: '400', style: '' };
-				}
-				// Check if variant contains "italic"
-				if (variant.includes('italic')) {
-					const weight = variant.replace('italic', '');
-					return { weight: weight || '400', style: 'italic ' };
-				}
-				// Otherwise, it's just a weight
-				return { weight: variant, style: '' };
-			};
-
-			if (fSize === fontSize && app_state.main_font?.selectedVariant) {
-				const parts = getVariantParts(app_state.main_font.selectedVariant);
-				fontWeight = parts.weight;
-				variantStyle = parts.style;
-			} else if (app_state.sub_font?.selectedVariant) {
-				const parts = getVariantParts(app_state.sub_font.selectedVariant);
-				fontWeight = parts.weight;
-				variantStyle = parts.style;
-			}
-
-			// Combine user-selected style with variant style
-			// If user selected italic and variant is italic, just use italic once
-			if (variantStyle && fontStyle.includes('italic')) {
-				fontStyle = fontStyle.replace('italic ', '') + variantStyle;
-			} else {
-				fontStyle += variantStyle;
-			}
-
-			const fontFamily =
-				fSize === fontSize && app_state.main_font
-					? app_state.main_font.family
-					: fSize === fontSize
-						? 'serif'
-						: app_state.sub_font
-							? app_state.sub_font.family
-							: 'sans-serif';
-			ctx!.font = `${fontStyle}${fontWeight} ${fSize}px "${fontFamily}"`;
-
-			// For RTL text, we need to process words from right to left
-			// Split text by newlines first to handle line breaks
-			const paragraphs = text.split(/\\n|\n/);
+			const lines = buildLines(text, fSize, isMainText);
 			let y = startY;
 			const lineHeight = fSize * 1.2;
 
-			const drawLine = (textLine: string, lineY: number) => {
-				let lineX = x;
-				// Adjust lineX for RTL text
-				if (textDirection === 'rtl') {
-					lineX = x + maxWidth - ctx!.measureText(textLine).width;
-				}
-				if (isMainText) {
-					const metrics = ctx!.measureText(textLine.trim());
-					if (text_align === 'center') {
-						lineX = x + (maxWidth - metrics.width) / 2;
-					} else if (text_align === 'right') {
-						lineX = x + (maxWidth - metrics.width);
-					}
-				}
-				ctx!.fillText(textLine.trim(), lineX, lineY);
-
-				if (isMainText && is_underline) {
-					const metrics = ctx!.measureText(textLine.trim());
-					ctx!.beginPath();
-					ctx!.strokeStyle = color;
-					ctx!.lineWidth = fSize / 15;
-					ctx!.moveTo(lineX, lineY + fSize * 0.95);
-					ctx!.lineTo(lineX + metrics.width, lineY + fSize * 0.95);
-					ctx!.stroke();
-				}
-			};
-
-			// Function to check if text contains CJK (Chinese, Japanese, Korean) characters
-			const containsCJK = (str: string) => {
-				return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(str);
-			};
-
-			// Process each paragraph
-			for (let p = 0; p < paragraphs.length; p++) {
-				const paragraph = paragraphs[p].trim();
-				if (paragraph.length === 0) {
-					y += lineHeight; // Add extra space for empty lines
+			for (const line of lines) {
+				if (line.tokens.length === 0) {
+					y += lineHeight;
 					continue;
 				}
 
-				// For CJK text, wrap character by character
-				if (containsCJK(paragraph)) {
-					let line = '';
-					for (let i = 0; i < paragraph.length; i++) {
-						const char = paragraph[i];
-						const testLine = line + char;
-						const metrics = ctx!.measureText(testLine);
-
-						if (metrics.width > maxWidth && line.length > 0) {
-							drawLine(line, y);
-							line = char;
-							y += lineHeight;
-						} else {
-							line = testLine;
-						}
+				let lineX = x;
+				if (textDirection === 'rtl') {
+					lineX = x + maxWidth - line.width;
+				} else if (isMainText) {
+					if (text_align === 'center') {
+						lineX = x + (maxWidth - line.width) / 2;
+					} else if (text_align === 'right') {
+						lineX = x + (maxWidth - line.width);
 					}
-					if (line.length > 0) {
-						drawLine(line, y);
-						y += lineHeight;
+				}
+
+				if (textDirection === 'rtl') {
+					// Paint RTL native sequences carefully reversed
+					let currentX = lineX + line.width;
+					for (const token of line.tokens) {
+						currentX -= token.width;
+						ctx!.font = getFontString(fSize, isMainText, token.bold, token.italic);
+						ctx!.fillStyle = color;
+						ctx!.fillText(token.text, currentX, y);
+
+						if (token.underline) {
+							ctx!.beginPath();
+							ctx!.strokeStyle = color;
+							ctx!.lineWidth = fSize / 15;
+							ctx!.moveTo(currentX, y + fSize * 0.95);
+							ctx!.lineTo(currentX + token.width, y + fSize * 0.95);
+							ctx!.stroke();
+						}
 					}
 				} else {
-					// For non-CJK text, wrap by words
-					const words = paragraph.split(' ');
-					let line = '';
-					for (let n = 0; n < words.length; n++) {
-						const testLine = line + words[n] + ' ';
-						const metrics = ctx!.measureText(testLine);
-						const testWidth = metrics.width;
-						if (testWidth > maxWidth && n > 0) {
-							drawLine(line, y);
-							line = words[n] + ' ';
-							y += lineHeight;
-						} else {
-							line = testLine;
+					let currentX = lineX;
+					for (const token of line.tokens) {
+						ctx!.font = getFontString(fSize, isMainText, token.bold, token.italic);
+						ctx!.fillStyle = color;
+						ctx!.fillText(token.text, currentX, y);
+
+						if (token.underline) {
+							ctx!.beginPath();
+							ctx!.strokeStyle = color;
+							ctx!.lineWidth = fSize / 15;
+							ctx!.moveTo(currentX, y + fSize * 0.95);
+							ctx!.lineTo(currentX + token.width, y + fSize * 0.95);
+							ctx!.stroke();
 						}
+						currentX += token.width;
 					}
-					drawLine(line, y);
-					y += lineHeight;
 				}
+				y += lineHeight;
 			}
 			return y;
 		}
 
-		// Book Info font size
-		const infoFontSize = 33;
-
-		function getWrappedHeight(text: string, fSize: number) {
-			const fontFamily = app_state.sub_font ? app_state.sub_font.family : 'sans-serif';
-			ctx!.font = `${fSize}px "${fontFamily}"`;
-
-			// Split text by newlines first to handle line breaks
-			const paragraphs = text.split(/\\n|\n/);
-			let lines = 0;
-
-			// Function to check if text contains CJK (Chinese, Japanese, Korean) characters
-			const containsCJK = (str: string) => {
-				return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/.test(str);
-			};
-
-			for (let p = 0; p < paragraphs.length; p++) {
-				const paragraph = paragraphs[p].trim();
-				if (paragraph.length === 0) {
-					lines++; // Count empty lines
-					continue;
-				}
-
-				if (containsCJK(paragraph)) {
-					// For CJK text, count lines by character wrapping
-					let line = '';
-					for (let i = 0; i < paragraph.length; i++) {
-						const char = paragraph[i];
-						const testLine = line + char;
-						if (ctx!.measureText(testLine).width > maxWidth && line.length > 0) {
-							line = char;
-							lines++;
-						} else {
-							line = testLine;
-						}
-					}
-					if (line.length > 0) {
-						lines++;
-					}
-				} else {
-					// For non-CJK text, count lines by word wrapping
-					const words = paragraph.split(' ');
-					let line = '';
-					for (let n = 0; n < words.length; n++) {
-						const testLine = line + words[n] + ' ';
-						if (ctx!.measureText(testLine).width > maxWidth && n > 0) {
-							line = words[n] + ' ';
-							lines++;
-						} else {
-							line = testLine;
-						}
-					}
-					lines++; // Count last line of paragraph
-				}
-			}
-
-			return lines * (fSize * 1.2);
+		function getWrappedHeight(text: string, fSize: number, isMainText: boolean) {
+			const lines = buildLines(text, fSize, isMainText);
+			return lines.length * (fSize * 1.2);
 		}
 
-		const titleHeight = show_title ? getWrappedHeight(display_title, infoFontSize) : 0;
-		const authorHeight = show_author ? getWrappedHeight(display_author, infoFontSize) : 0;
+		const infoFontSize = 33;
+		const titleHeight = show_title ? getWrappedHeight(display_title, infoFontSize, false) : 0;
+		const authorHeight = show_author ? getWrappedHeight(display_author, infoFontSize, false) : 0;
 
 		if (swap_layout) {
-			// Book Info at top
 			let infoY = padding;
-			if (show_title) {
+			if (show_title)
 				infoY = wrapText(display_title, padding, infoY, infoFontSize, currentMetaColor);
-			}
-			if (show_author) {
+			if (show_author)
 				infoY = wrapText(display_author, padding, infoY, infoFontSize, currentMetaColor);
-			}
 
-			// Draw Quote at bottom
-			const textHeight = getWrappedHeight(display_text, fontSize);
+			const textHeight = getWrappedHeight(display_text, fontSize, true);
 			let textY = cardHeight - padding - textHeight;
 			wrapText(display_text, padding, textY, fontSize, currentTextColor, true);
 		} else {
-			// Draw Quote at top (default)
 			wrapText(display_text, padding, padding, fontSize, currentTextColor, true);
 
-			// Book Info at bottom
 			let infoY = cardHeight - padding - titleHeight - authorHeight;
-			if (show_author) {
+			if (show_author)
 				infoY = wrapText(display_author, padding, infoY, infoFontSize, currentMetaColor);
-			}
-			if (show_title) {
-				wrapText(display_title, padding, infoY, infoFontSize, currentMetaColor);
-			}
+			if (show_title) wrapText(display_title, padding, infoY, infoFontSize, currentMetaColor);
 		}
 	}
 
 	$effect(() => {
-		// Access reactive values to create dependencies
 		const _text = display_text;
 		const _title = display_title;
 		const _author = display_author;
@@ -786,38 +839,18 @@
 		drawCanvas();
 	});
 
-	// Track if sliders have been initialized with calculated values
-	let slidersInitialized = $state(false);
-
-	// Initialize sliders once when display_text is first populated
-	$effect(() => {
-		// Only initialize when we have content and sliders haven't been initialized yet
-		if (display_text && !slidersInitialized) {
-			slidersInitialized = true;
-			custom_font_size = [layout.fontSize];
-			custom_width = [layout.cardWidth];
-			custom_height = [layout.cardHeight];
-		}
-	});
-
-	// Redraw canvas when variant changes (with delay for font loading)
 	$effect(() => {
 		const _mainVariant = mainVariant;
 		const _subVariant = subVariant;
-		// Wait for font to load before redrawing
 		setTimeout(() => drawCanvas(), 100);
 	});
 
-	// Check if we're in custom quote mode
 	let isCustomQuote = $derived(page.params.hid === 'custom_quote');
 	let customQuoteInitialized = $state(false);
 
 	$effect(() => {
-		// Handle custom quote mode - initialize with empty fields
-		// Check page.params.hid directly to avoid reactive loop
 		if (page.params.hid === 'custom_quote' && !customQuoteInitialized) {
 			customQuoteInitialized = true;
-			// Use timeout to avoid immediate re-trigger
 			setTimeout(() => {
 				selected_highlight = null;
 				display_text = '';
@@ -827,12 +860,9 @@
 			return;
 		}
 
-		if (selected_highlight) {
-			return;
-		}
-		if (!app_state.profile) {
-			return;
-		}
+		if (selected_highlight) return;
+		if (!app_state.profile) return;
+
 		const bookKey = page.params.id;
 		const highlightId = page.params.hid;
 		const highlight = app_state.profile.highlights.find(
@@ -850,7 +880,6 @@
 		const backButton = window.Telegram?.WebApp?.BackButton;
 		if (backButton) {
 			backButton.show();
-			// In custom quote mode, go to home page, otherwise go to book page
 			if (isCustomQuote) {
 				backButton.onClick(() => goto('/'));
 			} else {
@@ -895,7 +924,6 @@
 			<Tabs.Content value="text-content">
 				<div class="mt-4 flex flex-col gap-4">
 					<div class="space-y-2">
-						<!-- <label for="highlight-text" class="text-sm font-medium">Highlight Text</label> -->
 						<div class="flex flex-col">
 							<div class="mb-2 flex flex-wrap gap-2">
 								<FontSelector
@@ -905,14 +933,12 @@
 									bind:selectedVariant={mainVariant}
 								/>
 
-								<!-- Subset Dropdown for Main Font -->
 								<SubsetDropdown
 									font={mainFont}
 									selectedSubset={mainSubset}
 									onValueChange={updateMainSubset}
 								/>
 
-								<!-- Variant Dropdown for Main Font -->
 								<VariantDropdown
 									font={mainFont}
 									selectedVariant={mainVariant}
@@ -924,7 +950,7 @@
 									size="icon"
 									variant={is_bold ? 'default' : 'ghost'}
 									class="h-8 w-8"
-									onclick={() => (is_bold = !is_bold)}
+									onclick={() => handleFormat('b')}
 								>
 									<Bold class="h-4 w-4" />
 								</Button>
@@ -932,7 +958,7 @@
 									size="icon"
 									variant={is_italic ? 'default' : 'ghost'}
 									class="h-8 w-8"
-									onclick={() => (is_italic = !is_italic)}
+									onclick={() => handleFormat('i')}
 								>
 									<Italic class="h-4 w-4" />
 								</Button>
@@ -940,7 +966,7 @@
 									size="icon"
 									variant={is_underline ? 'default' : 'ghost'}
 									class="h-8 w-8"
-									onclick={() => (is_underline = !is_underline)}
+									onclick={() => handleFormat('u')}
 								>
 									<Underline class="h-4 w-4" />
 								</Button>
@@ -1004,14 +1030,12 @@
 							bind:selectedVariant={subVariant}
 						/>
 
-						<!-- Subset Dropdown for Sub Font -->
 						<SubsetDropdown
 							font={subFont}
 							selectedSubset={subSubset}
 							onValueChange={updateSubSubset}
 						/>
 
-						<!-- Variant Dropdown for Sub Font -->
 						<VariantDropdown
 							font={subFont}
 							selectedVariant={subVariant}
@@ -1020,7 +1044,6 @@
 					</div>
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div class="space-y-2">
-							<!-- <label for="book-title" class="text-sm font-medium">Book Title</label> -->
 							<div class="flex w-full gap-1">
 								<Input
 									id="book-title"
@@ -1039,8 +1062,6 @@
 							</div>
 						</div>
 						<div class="space-y-2">
-							<!-- <label for="book-author" class="text-sm font-medium">Author</label> -->
-
 							<div class="flex w-full gap-1">
 								<Input
 									id="book-author"
@@ -1064,7 +1085,6 @@
 			<!-- ── Dimensions Tab ── -->
 			<Tabs.Content value="dimensions">
 				<div class="mt-4 flex flex-col gap-6">
-					<!-- Reset Button -->
 					<Button
 						variant="outline"
 						class="w-full"
@@ -1077,7 +1097,6 @@
 						Reset to Auto
 					</Button>
 
-					<!-- Font Size Control -->
 					<div class="space-y-3">
 						<div class="flex items-center justify-between">
 							<label class="text-sm font-medium">Font Size</label>
@@ -1120,7 +1139,6 @@
 						</div>
 					</div>
 
-					<!-- Width Control -->
 					<div class="space-y-3">
 						<div class="flex items-center justify-between">
 							<label class="text-sm font-medium">Card Width</label>
@@ -1162,7 +1180,6 @@
 						</div>
 					</div>
 
-					<!-- Height Control -->
 					<div class="space-y-3">
 						<div class="flex items-center justify-between">
 							<label class="text-sm font-medium">Card Height</label>
@@ -1209,7 +1226,6 @@
 			<!-- ── Background Tab ── -->
 			<Tabs.Content value="background">
 				<div class="mt-4 flex flex-col gap-6">
-					<!-- Background Mode Switcher -->
 					<div class="space-y-3">
 						<div class="grid grid-cols-2 gap-2">
 							<Button
@@ -1229,7 +1245,6 @@
 						</div>
 					</div>
 
-					<!-- ── Theme Mode ── -->
 					{#if bg_mode === 'theme'}
 						<div class="space-y-3">
 							<div class="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -1275,11 +1290,8 @@
 								{/each}
 							</div>
 						</div>
-
-						<!-- ── Image Mode ── -->
 					{:else if bg_mode === 'image'}
 						<div class="flex flex-col gap-5">
-							<!-- Hidden file input always in DOM for changeImage() to work -->
 							<input
 								id="bg-image-input"
 								type="file"
@@ -1287,35 +1299,8 @@
 								class="hidden"
 								onchange={handleImageUpload}
 							/>
-							<!-- Upload Area -->
 							<div class="space-y-2">
 								{#if bg_image_url}
-									<!-- <div class="relative overflow-hidden rounded-lg border">
-										<img
-											src={bg_image_url}
-											alt="Background preview"
-											class="h-40 w-full object-cover"
-										/>
-										<Button
-											variant="destructive"
-											size="icon"
-											class="absolute top-2 right-2 h-8 w-8 rounded-full"
-											onclick={clearImage}
-										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												class="h-4 w-4"
-												viewBox="0 0 20 20"
-												fill="currentColor"
-											>
-												<path
-													fill-rule="evenodd"
-													d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-													clip-rule="evenodd"
-												/>
-											</svg>
-										</Button>
-									</div> -->
 									<div class="flex w-full justify-between px-3">
 										<div class="flex gap-3">
 											<ButtonGroup>
@@ -1383,7 +1368,6 @@
 								{/if}
 							</div>
 
-							<!-- Text Color for Image Mode -->
 							<div class="space-y-3">
 								<label class="text-sm font-medium">Text Color</label>
 								<div class="flex gap-3">
@@ -1412,7 +1396,6 @@
 								</div>
 							</div>
 
-							<!-- Overlay Controls -->
 							<div class="space-y-4 rounded-lg border bg-muted/30 p-4">
 								<div class="flex w-full items-center space-x-2">
 									<Checkbox id="overlay" bind:checked={overlay_enabled} />
