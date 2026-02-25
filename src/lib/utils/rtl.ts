@@ -14,6 +14,18 @@ const RTL_LANGUAGES = new Set([
 	'zlm' // Malay (individual language) (Arabic)
 ]);
 
+// Minimum text length required for reliable RTL detection
+const MIN_TEXT_LENGTH = 11;
+
+/**
+ * Strips HTML tags from text for language detection
+ * @param text The text to strip HTML tags from
+ * @returns Text with HTML tags removed
+ */
+function stripHtmlTags(text: string): string {
+	return text.replace(/<[^>]*>/g, '');
+}
+
 /**
  * Detects if the given text is in a right-to-left language
  * @param text The text to analyze
@@ -25,8 +37,16 @@ export function isRTL(text: string): boolean {
 		return false;
 	}
 
+	// Strip HTML tags before detection
+	const cleanText = stripHtmlTags(text);
+
+	// If cleaned text is too short, return false (not enough data for reliable detection)
+	if (cleanText.trim().length < MIN_TEXT_LENGTH) {
+		return false;
+	}
+
 	// Detect language using franc
-	const langCode = franc(text);
+	const langCode = franc(cleanText);
 
 	// Check if detected language is in our RTL list
 	return RTL_LANGUAGES.has(langCode);
