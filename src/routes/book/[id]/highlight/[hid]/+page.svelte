@@ -221,7 +221,7 @@
 
 			try {
 				sending_highlight = true;
-				const apiResponse = await fetch('https://koreader-plugin-bot-server.deno.dev/send_image', {
+				const apiResponse = await fetch('https://koreader-plugin-bot-server.0xmiki.deno.net/send_image', {
 					method: 'POST',
 					body: formData
 				});
